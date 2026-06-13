@@ -1,0 +1,10 @@
+title       = "cc"
+baseURL     = "https://classcentral-cli.tamnd.com/"
+description = "Search online courses on Class Central"
+contentDir  = "content"
+outputDir   = "public"
+theme       = "tago-doks"
+syntaxHighlight = "true"
+
+[params]
+github = "https://github.com/tamnd/classcentral-cli"
