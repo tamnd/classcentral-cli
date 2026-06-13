@@ -112,6 +112,14 @@ func (c *Client) do(ctx context.Context, rawURL string) ([]byte, bool, error) {
 	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
 		return nil, true, fmt.Errorf("http %d", resp.StatusCode)
 	}
+	// Class Central returns 403 with a cf-mitigated: challenge header when
+	// Cloudflare blocks the request from datacenter IPs.
+	if resp.StatusCode == http.StatusForbidden {
+		if resp.Header.Get("cf-mitigated") != "" || resp.Header.Get("server") == "cloudflare" {
+			return nil, false, ErrBlocked
+		}
+		return nil, false, fmt.Errorf("http %d", resp.StatusCode)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, false, fmt.Errorf("http %d", resp.StatusCode)
 	}
