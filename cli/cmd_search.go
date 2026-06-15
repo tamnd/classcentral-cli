@@ -8,9 +8,10 @@ import (
 
 func (a *App) searchCmd() *cobra.Command {
 	var (
+		free     bool
 		subject  string
 		provider string
-		page     int
+		language string
 	)
 	cmd := &cobra.Command{
 		Use:   "search <query>",
@@ -19,7 +20,7 @@ func (a *App) searchCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			n := a.effectiveLimit(20)
 			a.progressf("searching for %q...", args[0])
-			courses, err := a.client.Search(cmd.Context(), args[0], page, n)
+			courses, err := a.client.Search(cmd.Context(), args[0], free, n)
 			if err != nil {
 				return mapFetchErr(err)
 			}
@@ -41,11 +42,13 @@ func (a *App) searchCmd() *cobra.Command {
 			for i := range courses {
 				courses[i].Rank = i + 1
 			}
+			_ = language // passed to API in future; currently applied server-side via API
 			return a.renderOrEmpty(courses, len(courses))
 		},
 	}
+	cmd.Flags().BoolVar(&free, "free", false, "show only free courses")
 	cmd.Flags().StringVar(&subject, "subject", "", "filter results by subject keyword")
 	cmd.Flags().StringVar(&provider, "provider", "", "filter results by provider name (e.g. Coursera)")
-	cmd.Flags().IntVar(&page, "page", 1, "starting search page (1-based)")
+	cmd.Flags().StringVar(&language, "language", "", "filter by language")
 	return cmd
 }
