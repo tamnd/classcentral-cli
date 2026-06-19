@@ -1,38 +1,130 @@
 package classcentral
 
+import "fmt"
+
 // Course is the record emitted for a Class Central course.
 type Course struct {
-	Rank        int     `json:"rank"`
-	Name        string  `json:"name"`
-	Provider    string  `json:"provider"`
-	Institution string  `json:"institution"`
-	Rating      float64 `json:"rating"`
-	Reviews     int     `json:"reviews"`
-	Enrollments int     `json:"enrollments"`
-	Duration    string  `json:"duration"`
-	Certificate bool    `json:"certificate"`
-	Language    string  `json:"language"`
-	Level       string  `json:"level"`
-	URL         string  `json:"url"`
+	Rank        int     `json:"rank"        table:"RANK"`
+	Name        string  `json:"name"        table:"NAME"`
+	Provider    string  `json:"provider"    table:"PROVIDER"`
+	Institution string  `json:"institution" table:"INSTITUTION"`
+	Rating      float64 `json:"rating"      table:"RATING"`
+	Reviews     int     `json:"reviews"     table:"REVIEWS"`
+	Enrollments int     `json:"enrollments" table:"ENROLLED"`
+	Level       string  `json:"level"       table:"LEVEL"`
+	Language    string  `json:"language"    table:"LANG"`
+	Certificate bool    `json:"certificate" table:"CERT"`
+	Duration    string  `json:"duration"    table:"DURATION"`
+	URL         string  `json:"url"         table:"URL"`
 }
 
 // Subject is the record emitted for a Class Central subject category.
 type Subject struct {
-	Rank  int    `json:"rank"`
-	Name  string `json:"name"`
-	Count int    `json:"count"`
-	URL   string `json:"url"`
+	Rank  int    `json:"rank"  table:"RANK"`
+	Name  string `json:"name"  table:"NAME"`
+	Count int    `json:"count" table:"COURSES"`
+	URL   string `json:"url"   table:"URL"`
 }
 
 // Provider is the record emitted for a course platform indexed by Class Central.
 type Provider struct {
-	Rank    int    `json:"rank"`
-	Name    string `json:"name"`
-	Courses int    `json:"courses"`
-	URL     string `json:"url"`
+	Rank    int    `json:"rank"    table:"RANK"`
+	Name    string `json:"name"    table:"NAME"`
+	Courses int    `json:"courses" table:"COURSES"`
+	URL     string `json:"url"     table:"URL"`
 }
 
-// ─── wire types from __NEXT_DATA__ ───────────────────────────────────────────
+// ─── REST API wire types ──────────────────────────────────────────────────────
+
+type searchResp struct {
+	Courses    []wireCourse `json:"courses"`
+	TotalCount int          `json:"totalCount"`
+}
+
+type subjectsResp struct {
+	Subjects []wireSubject `json:"subjects"`
+}
+
+type providersResp struct {
+	Providers []wireProvider `json:"providers"`
+}
+
+type wireCourse struct {
+	ID              int            `json:"id"`
+	Name            string         `json:"name"`
+	Slug            string         `json:"slug"`
+	Rating          float64        `json:"rating"`
+	ReviewCount     int            `json:"review_count"`
+	EnrollmentCount int            `json:"enrollment_count"`
+	DurationWeeks   int            `json:"duration_in_weeks"`
+	HoursPerWeek    int            `json:"hours_per_week"`
+	Certificate     bool           `json:"certificate"`
+	Language        string         `json:"language"`
+	Level           string         `json:"level"`
+	Providers       []wireProvider `json:"providers"`
+	Universities    []wireUniv     `json:"universities"`
+	Subjects        []wireSubjTag  `json:"subjects"`
+	URL             string         `json:"url"`
+}
+
+type wireProvider struct {
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	CourseCount int    `json:"course_count"`
+}
+
+type wireSubject struct {
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	CourseCount int    `json:"course_count"`
+}
+
+type wireUniv struct {
+	Name string `json:"name"`
+}
+
+type wireSubjTag struct {
+	Name string `json:"name"`
+}
+
+func (w wireCourse) toCourse(rank int) Course {
+	provider := ""
+	if len(w.Providers) > 0 {
+		provider = w.Providers[0].Name
+	}
+	institution := ""
+	if len(w.Universities) > 0 {
+		institution = w.Universities[0].Name
+	}
+	duration := ""
+	if w.DurationWeeks > 0 && w.HoursPerWeek > 0 {
+		duration = fmt.Sprintf("%d weeks, %d hrs/week", w.DurationWeeks, w.HoursPerWeek)
+	} else if w.DurationWeeks > 0 {
+		duration = fmt.Sprintf("%d weeks", w.DurationWeeks)
+	}
+	u := w.URL
+	if u == "" && w.Slug != "" {
+		u = "https://www.classcentral.com/course/" + w.Slug
+	}
+	return Course{
+		Rank:        rank,
+		Name:        w.Name,
+		Provider:    provider,
+		Institution: institution,
+		Rating:      w.Rating,
+		Reviews:     w.ReviewCount,
+		Enrollments: w.EnrollmentCount,
+		Level:       w.Level,
+		Language:    w.Language,
+		Certificate: w.Certificate,
+		Duration:    duration,
+		URL:         u,
+	}
+}
+
+// ─── __NEXT_DATA__ wire types (HTML fallback, used by parse.go) ───────────────
 
 type ndCourse struct {
 	ID               int             `json:"id"`
@@ -71,7 +163,7 @@ type ndProviderWire struct {
 	CoursesCount int    `json:"coursesCount"`
 }
 
-// ─── conversion helpers ───────────────────────────────────────────────────────
+// ─── __NEXT_DATA__ conversion helpers ────────────────────────────────────────
 
 func courseFromND(c ndCourse, rank int, baseURL string) Course {
 	inst := ""
